@@ -6,26 +6,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        pyversion: [311, 312]
+        include:
+          - pyversion: 311
+            python-version: "3.11"
+          - pyversion: 312
+            python-version: "3.12"
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Python ${{ matrix.pyversion }}
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: "${{ matrix.pyversion:0:1 }}.${{ matrix.pyversion:1 }}"
+          python-version: "${{ matrix.python-version }}"
 
-      - name: Build Lambda Layer
+      - name: Install dependencies and build layer
         run: |
           chmod +x layers/psycopg2-py${{ matrix.pyversion }}/build.sh
           ./layers/psycopg2-py${{ matrix.pyversion }}/build.sh
         working-directory: layers/psycopg2-py${{ matrix.pyversion }}
 
-      - name: Upload Layer ZIP artifact
+      - name: Upload layer zip artifact
         uses: actions/upload-artifact@v3
         with:
           name: psycopg2-py${{ matrix.pyversion }}-layer
@@ -34,30 +39,31 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
-      - name: Download psycopg2-py311 Layer
+      - name: Checkout repo for deploy script
+        uses: actions/checkout@v3
+
+      - name: Download psycopg2-py311 artifact
         uses: actions/download-artifact@v3
         with:
           name: psycopg2-py311-layer
           path: layers/psycopg2-py311
 
-      - name: Download psycopg2-py312 Layer
+      - name: Download psycopg2-py312 artifact
         uses: actions/download-artifact@v3
         with:
           name: psycopg2-py312-layer
           path: layers/psycopg2-py312
 
-      - name: Checkout repo for deploy script
-        uses: actions/checkout@v3
-
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Run deploy script
+      - name: Deploy to AWS Lambda Layers
         run: |
           chmod +x deploy.sh
           ./deploy.sh
