@@ -1,0 +1,22 @@
+name: Test Artifact
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Create test file
+        run: |
+          mkdir -p test-dir
+          echo "hello from ${{ runner.os }}" > test-dir/hello.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-artifact
+          path: test-dir/
