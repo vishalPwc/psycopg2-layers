@@ -3,6 +3,10 @@ name: Build and Deploy Lambda Layers
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,7 +35,7 @@ jobs:
         working-directory: layers/psycopg2-py${{ matrix.pyversion }}
 
       - name: Upload layer zip artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.3
         with:
           name: psycopg2-py${{ matrix.pyversion }}-layer
           path: layers/psycopg2-py${{ matrix.pyversion }}/psycopg2_py${{ matrix.pyversion }}_layer.zip
