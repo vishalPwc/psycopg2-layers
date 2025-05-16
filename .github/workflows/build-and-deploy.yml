@@ -1,0 +1,63 @@
+name: Build and Deploy Lambda Layers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pyversion: [311, 312]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python ${{ matrix.pyversion }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: "${{ matrix.pyversion:0:1 }}.${{ matrix.pyversion:1 }}"
+
+      - name: Build Lambda Layer
+        run: |
+          chmod +x layers/psycopg2-py${{ matrix.pyversion }}/build.sh
+          ./layers/psycopg2-py${{ matrix.pyversion }}/build.sh
+        working-directory: layers/psycopg2-py${{ matrix.pyversion }}
+
+      - name: Upload Layer ZIP artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: psycopg2-py${{ matrix.pyversion }}-layer
+          path: layers/psycopg2-py${{ matrix.pyversion }}/psycopg2_py${{ matrix.pyversion }}_layer.zip
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download psycopg2-py311 Layer
+        uses: actions/download-artifact@v3
+        with:
+          name: psycopg2-py311-layer
+          path: layers/psycopg2-py311
+
+      - name: Download psycopg2-py312 Layer
+        uses: actions/download-artifact@v3
+        with:
+          name: psycopg2-py312-layer
+          path: layers/psycopg2-py312
+
+      - name: Checkout repo for deploy script
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Run deploy script
+        run: |
+          chmod +x deploy.sh
+          ./deploy.sh
